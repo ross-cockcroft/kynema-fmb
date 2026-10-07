@@ -127,6 +127,57 @@ TEST(AerodynamicsComponentTest, CalculateAerodynamicLoad_Case2) {
     EXPECT_NEAR(ref_axis_moment[2], expected_ref_axis_moment[2], 1.e-10);
 }
 
+TEST(AerodynamicsComponentTest, CalculateAerodynamicLoad_ThreeQuarterChord) {
+    const auto aoa_polar = std::vector{-1., 1.};
+    const auto cl_polar = std::vector{0., 1.};
+    const auto cd_polar = std::vector{.5, 0.};
+    const auto cm_polar = std::vector{-0.01, -0.03};
+
+    constexpr auto v_inflow = std::array{0., 10., 0.};
+    constexpr auto v_motion = std::array{0., 0., 0.};
+    constexpr auto chord = 2.;
+    constexpr auto delta_s = 1.5;
+    constexpr auto fluid_density = 1.225;
+    constexpr auto qqr = std::array{1., 0., 0., 0.};
+    constexpr auto con_force = std::array{0., -.5, 0.};
+
+    // Normal velocity that puts the angle of attack of the three-quarter chord point at 0.1 rad
+    constexpr auto v_normal_three_quarter_chord = 1.0033467208545055;
+
+    auto alpha = 0.;
+    auto cn = 0.;
+    auto ct = 0.;
+    auto cm = 0.;
+    auto v_rel = std::array<double, 3>{};
+
+    auto ref_axis_moment = std::array<double, 3>{};
+    auto load = kynema_fmb::interfaces::components::CalculateAerodynamicLoad(
+        ref_axis_moment, v_inflow, v_motion, aoa_polar, cl_polar, cd_polar, cm_polar, chord, delta_s,
+        fluid_density, con_force, qqr, v_rel, alpha, cn, ct, cm, v_normal_three_quarter_chord
+    );
+
+    // Coefficients from the polar at 0.1 rad, projected with the angle of attack at the
+    // aerodynamic center, which is zero
+    constexpr auto expected_load = std::array{0., 41.34375, -101.0625, -7.7175, 0., 0.};
+    constexpr auto expected_ref_axis_moment = std::array{-7.7175 - (101.0625 / 2.), 0., 0.};
+
+    EXPECT_NEAR(alpha, 0., 1.e-12);
+    EXPECT_NEAR(cn, 0.55, 1.e-12);
+    EXPECT_NEAR(ct, -0.225, 1.e-12);
+    EXPECT_NEAR(cm, -0.021, 1.e-12);
+
+    EXPECT_NEAR(load[0], expected_load[0], 1.e-10);
+    EXPECT_NEAR(load[1], expected_load[1], 1.e-10);
+    EXPECT_NEAR(load[2], expected_load[2], 1.e-10);
+    EXPECT_NEAR(load[3], expected_load[3], 1.e-10);
+    EXPECT_NEAR(load[4], expected_load[4], 1.e-10);
+    EXPECT_NEAR(load[5], expected_load[5], 1.e-10);
+
+    EXPECT_NEAR(ref_axis_moment[0], expected_ref_axis_moment[0], 1.e-10);
+    EXPECT_NEAR(ref_axis_moment[1], expected_ref_axis_moment[1], 1.e-10);
+    EXPECT_NEAR(ref_axis_moment[2], expected_ref_axis_moment[2], 1.e-10);
+}
+
 TEST(AerodynamicsComponentTest, CalculateConMotionVector_Case1) {
     constexpr auto ac_to_ref_axis_horizontal = 1.;
     constexpr auto chord_to_ref_axis_vertical = 0.;

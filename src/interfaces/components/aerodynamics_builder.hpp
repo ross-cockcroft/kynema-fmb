@@ -18,6 +18,11 @@ public:
         return *this;
     }
 
+    AerodynamicsBuilder& EnableThreeQuarterChordAoA() {
+        input.use_three_quarter_chord_aoa = true;
+        return *this;
+    }
+
     AerodynamicsBuilder& SetNumberOfAirfoils(size_t number_of_blades) {
         input.aero_inputs.resize(number_of_blades);
         return *this;

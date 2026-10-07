@@ -14,7 +14,8 @@ std::array<double, 6> CalculateAerodynamicLoad(
     std::span<const double> cl_polar, std::span<const double> cd_polar,
     std::span<const double> cm_polar, double chord, double delta_s, double fluid_density,
     std::span<const double, 3> con_force, std::span<const double, 4> qqr,
-    std::array<double, 3>& v_rel, double& aoa, double& cn, double& ct, double& cm
+    std::array<double, 3>& v_rel, double& aoa, double& cn, double& ct, double& cm,
+    double v_normal_three_quarter_chord
 ) {
     assert(aoa_polar.size() == cl_polar.size());
     assert(aoa_polar.size() == cd_polar.size());
@@ -34,8 +35,13 @@ std::array<double, 6> CalculateAerodynamicLoad(
 
     aoa = CalculateAngleOfAttack(std::span<const double, 3>(v_rel_l.data(), 3));
 
-    const auto polar_iterator = std::ranges::find_if(aoa_polar, [aoa](auto polar) {
-        return polar > aoa;
+    // Lift, drag and moment coefficients are looked up at the angle of attack of the
+    // three-quarter chord point. The loads are projected with the angle of attack at the
+    // aerodynamic center.
+    const auto aoa_lookup = std::atan2(-v_rel_l(2) + v_normal_three_quarter_chord, v_rel_l(1));
+
+    const auto polar_iterator = std::ranges::find_if(aoa_polar, [aoa_lookup](auto polar) {
+        return polar > aoa_lookup;
     });
 
     assert(polar_iterator != aoa_polar.end());
@@ -46,7 +52,7 @@ std::array<double, 6> CalculateAerodynamicLoad(
     const auto is_end = (polar_index == aoa_polar.size() - 1UL);
 
     const auto alpha = (is_end) ? 0.
-                                : (aoa - aoa_polar[polar_index]) /
+                                : (aoa_lookup - aoa_polar[polar_index]) /
                                       (aoa_polar[polar_index + 1] - aoa_polar[polar_index]);
 
     const auto cl =
@@ -427,6 +433,15 @@ AerodynamicBody::AerodynamicBody(const AerodynamicBodyInput& input, std::span<co
         return section.chord;
     });
 
+    use_three_quarter_chord_aoa = input.use_three_quarter_chord_aoa;
+    ac_to_three_quarter_chord = std::vector<double>(n_sections);
+    std::ranges::transform(
+        input.aero_sections, std::begin(ac_to_three_quarter_chord),
+        [](const auto& section) {
+            return (0.75 - section.aerodynamic_center) * section.chord;
+        }
+    );
+
     aoa = ExtractPolar(n_sections, [&](size_t section) {
         return input.aero_sections[section].aoa;
     });
@@ -472,11 +487,25 @@ void AerodynamicBody::SetAerodynamicLoads(std::span<const std::array<double, 6>>
 
 void AerodynamicBody::CalculateAerodynamicLoads(double fluid_density) {
     for (auto node = 0U; node < loads.size(); ++node) {
+        // Normal velocity of the three-quarter chord point relative to the aerodynamic center,
+        // from the rigid rotation of the body about the beam reference axis of the section.
+        // The angular velocity is taken at the root node, so the elastic rotation rate of the
+        // section is left out: the steady polar lookup has no unsteady pitch damping.
+        auto v_normal_three_quarter_chord = 0.;
+        if (use_three_quarter_chord_aoa) {
+            const auto qqr = Eigen::Quaternion<double>(
+                qqr_motion_map[node][0], qqr_motion_map[node][1], qqr_motion_map[node][2],
+                qqr_motion_map[node][3]
+            );
+            const auto omega = Eigen::Matrix<double, 3, 1>(&node_v.front()[3]);
+            const auto omega_local = qqr.inverse()._transformVector(omega);
+            v_normal_three_quarter_chord = omega_local(0) * ac_to_three_quarter_chord[node];
+        }
         const auto load = CalculateAerodynamicLoad(
             ref_axis_moments[node], v_inflow[node], v_motion[node], aoa[node], cl_polar[node],
             cd_polar[node], cm_polar[node], chord[node], delta_s[node], fluid_density,
             con_force[node], qqr_motion_map[node], v_rel[node], alpha[node], cn[node], ct[node],
-            cm[node]
+            cm[node], v_normal_three_quarter_chord
         );
         for (auto component = 0U; component < 6U; ++component) {
             loads[node][component] = load[component];

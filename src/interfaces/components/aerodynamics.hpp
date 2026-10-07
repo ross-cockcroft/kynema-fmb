@@ -21,7 +21,8 @@ std::array<double, 6> CalculateAerodynamicLoad(
     std::span<const double> cl_polar, std::span<const double> cd_polar,
     std::span<const double> cm_polar, double chord, double delta_s, double fluid_density,
     std::span<const double, 3> con_force, std::span<const double, 4> qqr,
-    std::array<double, 3>& v_rel, double& aoa, double& cn, double& ct, double& cm
+    std::array<double, 3>& v_rel, double& aoa, double& cn, double& ct, double& cm,
+    double v_normal_three_quarter_chord = 0.
 );
 
 std::array<double, 3> CalculateConMotionVector(
@@ -38,6 +39,11 @@ std::vector<double> CalculateAeroNodeWidths(
 class AerodynamicBody {
 public:
     size_t id;
+
+    /// @brief Look up the polars at the angle of attack of the three-quarter chord point, which
+    /// differs from the angle of attack at the aerodynamic center when the body rotates about the
+    /// reference axis of the section (curved or coned blades, Li et al. 2022)
+    bool use_three_quarter_chord_aoa{false};
 
     //--------------------------------------------------------------------------
     // Node data
@@ -126,6 +132,9 @@ public:
 
     /// @brief Aerodynamic section chord length
     std::vector<double> chord;
+
+    /// @brief Distance from aerodynamic center to three-quarter chord point at aerodynamic sections
+    std::vector<double> ac_to_three_quarter_chord;
 
     /// @brief Aerodynamic section width for force/moment calculation
     std::vector<double> delta_s;

@@ -42,16 +42,21 @@ struct AerodynamicBodyInput {
     size_t id{};
     std::vector<size_t> beam_node_ids;
     std::vector<AerodynamicSection> aero_sections;
+    bool use_three_quarter_chord_aoa{false};
     AerodynamicBodyInput(
         size_t id_val, const std::vector<size_t>& node_ids,
-        const std::vector<AerodynamicSection>& sections
+        const std::vector<AerodynamicSection>& sections, bool three_quarter_chord_aoa = false
     )
-        : id(id_val), beam_node_ids(node_ids), aero_sections(sections) {}
+        : id(id_val),
+          beam_node_ids(node_ids),
+          aero_sections(sections),
+          use_three_quarter_chord_aoa(three_quarter_chord_aoa) {}
 };
 
 class AerodynamicsInput {
 public:
     bool is_enabled = false;
+    bool use_three_quarter_chord_aoa = false;
     std::vector<std::vector<AerodynamicSection>> aero_inputs;
     std::vector<size_t> airfoil_map;
 };

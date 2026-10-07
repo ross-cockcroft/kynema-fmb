@@ -56,7 +56,8 @@ TurbineInterface::TurbineInterface(
             );
             aero_inputs.emplace_back(
                 blade, blade_node_ids,
-                aerodynamics_input.aero_inputs[aerodynamics_input.airfoil_map[blade]]
+                aerodynamics_input.aero_inputs[aerodynamics_input.airfoil_map[blade]],
+                aerodynamics_input.use_three_quarter_chord_aoa
             );
         }
         // If there are more entries in the airfoil inputs than blades in the turbine
@@ -70,7 +71,8 @@ TurbineInterface::TurbineInterface(
             );
             aero_inputs.emplace_back(
                 num_turbine_blades, tower_node_ids,
-                aerodynamics_input.aero_inputs[aerodynamics_input.airfoil_map.back()]
+                aerodynamics_input.aero_inputs[aerodynamics_input.airfoil_map.back()],
+                aerodynamics_input.use_three_quarter_chord_aoa
             );
         }
         aerodynamics = std::make_unique<components::Aerodynamics>(aero_inputs, model.GetNodes());
